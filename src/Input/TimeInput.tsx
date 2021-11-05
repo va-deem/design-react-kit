@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { HTMLAttributes, ReactNode, useState } from 'react';
 import classNames from 'classnames';
 
 import { noop } from '../utils';
-import { Input } from './Input';
+import { Input, InputProps } from './Input';
 import { Icon } from '../Icon/Icon';
+import { getClasses, getInfoTextControlClass } from './utils';
 
 export const addTime = (value: string, maxValue: number): string => {
   const currTime = Number(value);
@@ -18,23 +19,66 @@ export const subtractTime = (value: string, minValue: number): string => {
 export const formatTime = (value: number | string): string =>
   `0${value}`.substr(-2);
 
-export const TimeInput = (props: {
-  /** ID del campo */
-  id?: string;
-  /** Etichetta del campo */
-  label: string;
+interface TimeInputContainerProps extends HTMLAttributes<HTMLElement> {
+  wrapperClass: string;
+  activeClass: string;
+  infoTextClass: string;
+  label: string | ReactNode | undefined;
+  infoText: string | undefined;
+  invalid: boolean;
+  id: string | undefined;
+  button?: ReactNode;
+  icon?: ReactNode;
+}
+
+const TimeInputContainer = ({
+  wrapperClass,
+  icon,
+  children,
+  activeClass,
+  label,
+  id,
+  infoText,
+  button,
+  infoTextClass,
+  invalid
+}: TimeInputContainerProps) => {
+  const infoId = id ? `${id}Description` : undefined;
+  return (
+    <div className={classNames(wrapperClass)}>
+      <div className='input-group'>
+        {icon && (
+          <div className='input-group-prepend'>
+            <div className='input-group-text'>{icon}</div>
+          </div>
+        )}
+        {children}
+        <label
+          htmlFor={id}
+          className={classNames(activeClass, { 'error-label': invalid })}
+        >
+          {label}
+        </label>
+        <small id={infoId} className={infoTextClass}>
+          {infoText}
+        </small>
+        {button && <div className='input-group-append'>{button}</div>}
+      </div>
+    </div>
+  );
+};
+
+type UnusedProps = 'plaintext' | 'onBlur' | 'value' | 'type';
+
+export interface TimeInputProps extends Omit<InputProps, UnusedProps> {
   /** Etichetta della sezione per il controllo delle ore e dei minuti - non visibile a schermo */
   controlsLabel?: string;
   /** Determina l'uso del tema scuro per la sezione di selezione di ore e minuti */
   dark?: boolean;
-  /** Funzione callback */
-  onBlur?: Function;
-  /** Utilizzare per mostrare il fallimento nella validazione del valore nel campo */
-  invalid?: boolean;
   /** Il valore del campo */
   value?: string;
-  /** Testo di esempio da utilizzare per il campo */
-  placeholder?: string;
+  /** Funzione callback */
+  onBlur?: (time: string) => void;
   /** Testo esplicativo per dispositivi screen reader */
   srText?: string;
   /** Etichetta del campo per la selezione delle ore -  non visibile a schermo */
@@ -49,25 +93,26 @@ export const TimeInput = (props: {
   decreaseHoursLabel?: string;
   /** Etichetta del bottone per diminuire i minuti -  non visibile a schermo */
   decreaseMinutesLabel?: string;
-}) => {
-  const {
-    dark = false,
-    onBlur = noop,
-    label,
-    controlsLabel,
-    invalid = false,
-    value = '',
-    id,
-    placeholder,
-    srText,
-    hoursLabel,
-    minutesLabel,
-    increaseHoursLabel,
-    increaseMinutesLabel,
-    decreaseHoursLabel,
-    decreaseMinutesLabel
-  } = props;
+}
 
+export const TimeInput = ({
+  dark = false,
+  onBlur = noop,
+  label,
+  controlsLabel,
+  invalid = false,
+  value = '',
+  id,
+  placeholder,
+  srText,
+  hoursLabel,
+  minutesLabel,
+  increaseHoursLabel,
+  increaseMinutesLabel,
+  decreaseHoursLabel,
+  decreaseMinutesLabel,
+  ...attributes
+}: TimeInputProps) => {
   const [initialHours, initialMinutes] = value.split(':');
   const [isOpen, setIsOpen] = useState(false);
   const [hours, setHours] = useState(initialHours || '00');
@@ -75,6 +120,7 @@ export const TimeInput = (props: {
   const [time, setTime] = useState(
     initialHours && initialMinutes ? `${initialHours}:${initialMinutes}` : ''
   );
+  const [isFocused, toggleFocus] = useState(false);
 
   const button = (
     <button className='btn-time' onClick={() => setIsOpen(!isOpen)}>
@@ -101,6 +147,26 @@ export const TimeInput = (props: {
     setTime(value);
   };
 
+  const infoTextControlClass = getInfoTextControlClass(
+    attributes,
+    attributes.cssModule
+  );
+
+  const { activeClass, infoTextClass, wrapperClass } = getClasses(
+    attributes.className,
+    {
+      ...attributes,
+      normalized: Boolean(attributes.normalized),
+      inputPassword: false,
+      formControlClass: 'form-control',
+      infoTextControlClass,
+      isFocused,
+      originalWrapperClass:
+        attributes.wrapperClassName || attributes.wrapperClass
+    },
+    attributes.cssModule
+  );
+
   return (
     <div
       className={classNames('it-timepicker-wrapper', {
@@ -115,18 +181,36 @@ export const TimeInput = (props: {
           </legend>
           <div>
             <div className='calendar-input-container'>
-              <Input
-                type='time'
+              <TimeInputContainer
+                wrapperClass={wrapperClass}
+                activeClass={activeClass}
+                infoTextClass={infoTextClass}
                 label={label}
+                infoText={attributes.infoText}
                 id={id}
-                placeholder={placeholder}
                 button={button}
-                value={time}
-                onFocus={() => setIsOpen(false)}
-                onChange={(e) => onTimeChange(e.target.value)}
                 invalid={invalid}
-                onBlur={() => onBlur(time)}
-              />
+              >
+                <Input
+                  {...attributes}
+                  type='time'
+                  label={label}
+                  id={id}
+                  placeholder={placeholder}
+                  value={time}
+                  onFocus={() => {
+                    setIsOpen(false);
+                    toggleFocus(true);
+                  }}
+                  onChange={(e) => onTimeChange(e.target.value)}
+                  invalid={invalid}
+                  onBlur={() => {
+                    toggleFocus(false);
+                    onBlur(time);
+                  }}
+                  noWrapper
+                />
+              </TimeInputContainer>
             </div>
           </div>
         </fieldset>

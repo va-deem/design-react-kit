@@ -105,6 +105,8 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   onFocus?: FocusEventHandler<HTMLInputElement>;
   /** Funzione callback per quando il campo perde il focus */
   onBlur?: FocusEventHandler<HTMLInputElement>;
+  /** Quando attivo rimuove il componente contenitore dell'Input. Utile per un controllo maggiore dello styling */
+  noWrapper?: boolean;
 }
 
 type InputState = { isFocused: boolean; hidden: boolean; icon: boolean };
@@ -161,8 +163,7 @@ export class Input extends React.Component<InputProps, InputState> {
       wrapperClass: originalWrapperClassOld,
       wrapperClassName: originalWrapperClass,
       size,
-      button,
-      icon,
+      noWrapper = false,
       ...attributes
     } = this.props;
     let { bsSize, valid, invalid, ...rest } = attributes;
@@ -209,7 +210,6 @@ export class Input extends React.Component<InputProps, InputState> {
     if (type === 'time') {
       extraAttributes.type = 'text';
     }
-    const errorClass = invalid && type === 'time' ? 'error-label' : '';
 
     // associate the input field with the help text
     const infoId = id ? `${id}Description` : undefined;
@@ -275,14 +275,22 @@ export class Input extends React.Component<InputProps, InputState> {
       id,
       infoId,
       activeClass,
-      errorClass,
       label,
       infoTextClass,
       infoText,
-      wrapperClass,
-      button,
-      icon
+      wrapperClass
     };
+
+    if (noWrapper) {
+      return (
+        <Tag
+          {...rest}
+          {...extraAttributes}
+          className={inputClasses}
+          {...sharedAttributes}
+        />
+      );
+    }
 
     if (placeholder) {
       return (
