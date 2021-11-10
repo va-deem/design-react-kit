@@ -10,7 +10,7 @@ import {
   getInfoTextControlClass
 } from './utils';
 import type { CSSModule } from 'reactstrap';
-import { notifyDeprecation } from '../utils';
+import { notifyDeprecation, noop } from '../utils';
 // taken from reactstrap types
 type InputType =
   | 'text'
@@ -89,29 +89,42 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
    * @deprecated
    */
   static?: boolean;
+  /** Quando attivo rimuove il componente contenitore dell'Input. Utile per un controllo maggiore dello styling */
+  noWrapper?: boolean;
+  /** Funzione callback per quando il campo riceve il focus */
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
+  /** Funzione callback per quando il campo perde il focus */
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
 }
 
 type InputState = { isFocused: boolean; hidden: boolean; icon: boolean };
 
 export class Input extends React.Component<InputProps, InputState> {
+  public static defaultProps = {
+    onFocus: noop,
+    onBlur: noop
+  };
+
   state = {
     isFocused: false,
     hidden: true,
     icon: true
   };
 
-  toggleFocusLabel = () => {
+  toggleFocusLabel = (e: React.FocusEvent<HTMLInputElement>) => {
     this.setState({
       isFocused: true
     });
+    this.props.onFocus?.(e);
   };
 
-  toggleBlurLabel = (e: { target: { value: string } }) => {
+  toggleBlurLabel = (e: React.FocusEvent<HTMLInputElement>) => {
     if (e.target.value === '') {
       this.setState({
         isFocused: !this.state.isFocused
       });
     }
+    this.props.onBlur?.(e);
   };
 
   toggleShow = () => {
@@ -138,6 +151,7 @@ export class Input extends React.Component<InputProps, InputState> {
       wrapperClass: originalWrapperClassOld,
       wrapperClassName: originalWrapperClass,
       size,
+      noWrapper = false,
       ...attributes
     } = this.props;
     let { bsSize, valid, invalid, ...rest } = attributes;
@@ -250,6 +264,18 @@ export class Input extends React.Component<InputProps, InputState> {
       infoText,
       wrapperClass
     };
+
+    if (noWrapper) {
+      return (
+        <Tag
+          {...rest}
+          {...extraAttributes}
+          className={inputClasses}
+          {...sharedAttributes}
+          placeholder={placeholder}
+        />
+      );
+    }
 
     if (placeholder) {
       return (
